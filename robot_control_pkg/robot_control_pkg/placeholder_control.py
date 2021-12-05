@@ -8,6 +8,8 @@ import numpy as np
 
 class PlaceholderController(Node):
 
+	goal_pose = None
+
 	def __init__(self):
 		super().__init__('PlaceholderController')
 		self.subscription = self.create_subscription(
@@ -15,20 +17,24 @@ class PlaceholderController(Node):
 			'/en613/state_est',
 			self.listener_callback,
 			10)
-		self.subscription  # prevent unused variable warning
+		self.goal_subscriber = self.create_subscription(
+														Pose,
+														'/en613/goal',
+														self.goal_callback,
+														10
+													   )
 
 		self.publisher_ = self.create_publisher(Twist, '/en613/cmd_vel', 10)
 
 
 	def listener_callback(self, msg):
-
 		self.publish_cmd()
 
 
 	def publish_cmd(self):
 
 		msg = Twist()
-		msg.linear.x = 0.02
+		msg.linear.x = 0.0
 		msg.linear.y = 0.0
 		msg.linear.z = 0.0
 		msg.angular.x = 0.0
@@ -37,8 +43,12 @@ class PlaceholderController(Node):
 
 		self.publisher_.publish(msg)
 
+	def goal_callback(self, msg):
+		goal_pose = msg
+		#self.get_logger().info('Goal Pose: {0}'.format(goal_pose))
 
-		
+	def print_goal(self, msg):
+		print(msg)
 
 def main(args=None):
     rclpy.init(args=args)

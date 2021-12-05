@@ -12,6 +12,13 @@ import numpy as np
 from rclpy.qos import qos_profile_sensor_data
 
 class PlaceholderEstimator(Node):
+	#global goalPose
+	#global laserScan
+#	global seenLidarBeacons
+
+	goalPose = None
+	laserScan = None
+	seenLidarBeacons = []
 
 	def __init__(self):
 
@@ -27,7 +34,13 @@ class PlaceholderEstimator(Node):
 			'/en613/odom',
 			self.odom_callback,
 			10)
-		
+
+		self.goal_subscriber = self.create_subscription(
+			Pose,
+			'/en613/goal',
+			self.goal_callback,
+			10)
+
 		self.publisher_ = self.create_publisher(Pose, '/en613/state_est', 10)
 
 		self._tf_buffer = tf2_ros.Buffer()
@@ -38,7 +51,7 @@ class PlaceholderEstimator(Node):
 
 
 	def scan_callback(self, msg):
-		print(msg)
+		self.laserScan = msg
 
 	def odom_callback(self, msg):
 		'''
@@ -59,6 +72,16 @@ class PlaceholderEstimator(Node):
 		T_msg = trans.transform.translation
 		R_msg = trans.transform.rotation
 
+		#if self.isGoalPositionReached(position) == False:
+		if self.laserScan is not None:
+			intensities = self.laserScan.intensities
+			ranges = self.laserScan.ranges
+			range_min = self.laserScan.range_min
+			range_max = self.laserScan.range_max
+
+			for i in range(0, len(intensities)):
+				if intensities[i] > 0 and intensities[i] not in self.seenLidarBeacons:
+					self.get_logger().info('Lidar Beacon {0} is at range {1} m'.format(intensities[i], ranges[i]))
 
 		T = np.array([T_msg.x,T_msg.y,T_msg.z])
 		R = np.array([R_msg.x,R_msg.y,R_msg.z,R_msg.w])
@@ -67,6 +90,21 @@ class PlaceholderEstimator(Node):
 		Q1 = np.array([orientation.x,orientation.y,orientation.z,orientation.w])
 
 		self.publish_pose(X1,Q1)
+
+	def isGoalPositionReached(self, curPose):
+
+		if goalPose is not None:
+
+			isXinRange = curPose.x > (self.goalPose.x - 0.5) and curPose.x < (self.goalPose.x + 0.5)
+			isYinRange = curPose.y > (self.goalPose.y - 0.5) and curPose.y < (self.goalPose.y + 0.5)
+
+			return (isXinRange and isYinRange)
+		else:
+			return True
+
+	def goal_callback(self, msg):
+		self.goalPose = msg
+		#self.get_logger().info('Goal Pose: {0}'.format(self.goalPose))
 
 	def publish_pose(self,X1,Q1):
 
@@ -80,7 +118,6 @@ class PlaceholderEstimator(Node):
 		msg.orientation.w = Q1[3]
 		self.publisher_.publish(msg)
 
-
 def main(args=None):
     rclpy.init(args=args)
 
@@ -93,7 +130,6 @@ def main(args=None):
     # when the garbage collector destroys the node object)
     estimator.destroy_node()
     rclpy.shutdown()
-
 
 if __name__ == '__main__':
     main()
