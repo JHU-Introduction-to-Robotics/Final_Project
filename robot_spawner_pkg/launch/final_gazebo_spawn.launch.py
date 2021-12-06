@@ -46,7 +46,7 @@ def generate_launch_description():
     #                    arguments=['-entity', 'demo', '-database', 'double_pendulum_with_base'],
     #                    output='screen')
     spawn_entity = Node(package='robot_spawner_pkg', executable='spawn_scenario',
-                        arguments=['BasicBot', 'en613', '3'],
+                        arguments=['BasicBot', 'en613', '2'],
                         output='screen')
 
     return LaunchDescription([

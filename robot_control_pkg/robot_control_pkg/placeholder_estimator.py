@@ -5,7 +5,7 @@ from time import sleep
 from rclpy.duration import Duration
 from rclpy.node import Node
 from std_msgs.msg import String
-from geometry_msgs.msg import Pose
+from geometry_msgs.msg import Pose, Twist
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import LaserScan
 import numpy as np
@@ -42,6 +42,7 @@ class PlaceholderEstimator(Node):
 			10)
 
 		self.publisher_ = self.create_publisher(Pose, '/en613/state_est', 10)
+		self.velPublisher = self.create_publisher(Twist, '/en613/cmd_vel', 10)
 
 		self._tf_buffer = tf2_ros.Buffer()
 		self.listener = tf2_ros.TransformListener(self._tf_buffer,self)
@@ -73,15 +74,46 @@ class PlaceholderEstimator(Node):
 		R_msg = trans.transform.rotation
 
 		#if self.isGoalPositionReached(position) == False:
+
+		self.moveRobot(0.0, 0.0, 0.0) # stop robot
+
 		if self.laserScan is not None:
 			intensities = self.laserScan.intensities
 			ranges = self.laserScan.ranges
 			range_min = self.laserScan.range_min
 			range_max = self.laserScan.range_max
 
+			beaconSeen = False
+			angVel = 0.01
+
 			for i in range(0, len(intensities)):
 				if intensities[i] > 0 and intensities[i] not in self.seenLidarBeacons:
+
+					locInScan = float((i + 1) / len(intensities))
+					#self.get_logger().info('Loc in scan: {0}'.format(locInScan))
+
 					self.get_logger().info('Lidar Beacon {0} is at range {1} m'.format(intensities[i], ranges[i]))
+					beaconSeen = True
+
+					if ranges[i] < 1.5:
+						beaconSeen = False
+						self.seenLidarBeacons.append(intensities[i])
+					#if locInScan > 0.45 and locInScan < 0.55:
+
+					#elif locInScan < 0.15:
+					#	beaconSeen = False
+					#	angVel = -0.01
+					#elif locInScan > 0.85:
+					#	beaconSeen = False
+					#	angVel = 0.01
+				if intensities[i] == 0 and ranges[i] < 0.5:
+					beaconSeen = False
+					angVel = 0.01
+
+			if beaconSeen == False:
+				self.moveRobot(0.0, 0.0, angVel)
+			else:
+				self.moveRobot(0.01, 0.0, 0.0) # stop robot
 
 		T = np.array([T_msg.x,T_msg.y,T_msg.z])
 		R = np.array([R_msg.x,R_msg.y,R_msg.z,R_msg.w])
@@ -91,9 +123,28 @@ class PlaceholderEstimator(Node):
 
 		self.publish_pose(X1,Q1)
 
+	def moveRobot(self, xVel, yVel, angVel):
+		velMsg = Twist()
+
+		velMsg.linear.x = xVel
+		velMsg.linear.y = yVel
+		velMsg.linear.z = 0.0
+		velMsg.angular.x = 0.0
+		velMsg.angular.y = 0.0
+		velMsg.angular.z = angVel
+
+		if xVel > 0:
+			self.get_logger().info('x Velocity {0} ,m/s'.format(velMsg.angular.x))
+		if yVel > 0:
+			self.get_logger().info('y Velocity {0} ,m/s'.format(velMsg.angular.y))
+		if angVel > 0:
+			self.get_logger().info('Angular Velocity {0} rad/s'.format(velMsg.angular.z))
+
+		self.velPublisher.publish(velMsg)
+
 	def isGoalPositionReached(self, curPose):
 
-		if goalPose is not None:
+		if self.goalPose is not None:
 
 			isXinRange = curPose.x > (self.goalPose.x - 0.5) and curPose.x < (self.goalPose.x + 0.5)
 			isYinRange = curPose.y > (self.goalPose.y - 0.5) and curPose.y < (self.goalPose.y + 0.5)

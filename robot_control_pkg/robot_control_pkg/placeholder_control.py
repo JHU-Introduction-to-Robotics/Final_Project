@@ -24,7 +24,7 @@ class PlaceholderController(Node):
 														10
 													   )
 
-		self.publisher_ = self.create_publisher(Twist, '/en613/cmd_vel', 10)
+		#self.publisher_ = self.create_publisher(Twist, '/en613/cmd_vel', 10)
 
 
 	def listener_callback(self, msg):
@@ -41,7 +41,7 @@ class PlaceholderController(Node):
 		msg.angular.y = 0.0
 		msg.angular.z = 0.0
 
-		self.publisher_.publish(msg)
+		#self.publisher_.publish(msg)
 
 	def goal_callback(self, msg):
 		goal_pose = msg
